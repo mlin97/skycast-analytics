@@ -1,0 +1,4 @@
+google-cloud-run
+google-cloud-build
+google-cloud-storage
+google-auth
