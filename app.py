@@ -182,6 +182,20 @@ if city_a and city_b and len(date_range) == 2:
         df_a["City"] = city_a
         df_b["City"] = city_b
         
+        # Calculate Metrics
+        avg_temp_a = df_a["Max Temp (°C)"].mean()
+        avg_temp_b = df_b["Max Temp (°C)"].mean()
+        
+        # Display Metrics
+        st.markdown("### 📊 Dataset Overview")
+        m_col1, m_col2 = st.columns(2)
+        with m_col1:
+            st.metric(label=f"Avg Max Temp ({city_a})", value=f"{avg_temp_a:.1f}°C")
+        with m_col2:
+            st.metric(label=f"Avg Max Temp ({city_b})", value=f"{avg_temp_b:.1f}°C")
+        
+        st.divider()
+
         combined_df = pd.concat([df_a, df_b])
         
         tab1, tab2 = st.tabs(["📈 Temperature Trends", "🔢 Raw Data"])
@@ -196,7 +210,8 @@ if city_a and city_b and len(date_range) == 2:
                 markers=True,
                 line_shape="spline",
                 template="plotly_white",
-                color_discrete_sequence=["#0d6efd", "#fd7e14"] 
+                # Custom Palette: Neon Blue (#00E5FF) and Sunset Orange (#FF5722)
+                color_discrete_sequence=["#00E5FF", "#FF5722"] 
             )
             fig.update_layout(
                 hovermode="x unified",
