@@ -42,6 +42,7 @@ st.markdown("""
 
 # --- Helper Functions ---
 
+@st.cache_data(ttl=3600)
 def get_lat_lon(city_name):
     """
     Fetches latitude and longitude for a given city name using Open-Meteo Geocoding API.
@@ -51,7 +52,8 @@ def get_lat_lon(city_name):
     try:
         url = "https://geocoding-api.open-meteo.com/v1/search"
         params = {"name": city_name, "count": 1, "language": "en", "format": "json"}
-        response = requests.get(url, params=params)
+        # Added timeout to prevent hanging
+        response = requests.get(url, params=params, timeout=10)
         response.raise_for_status()
         data = response.json()
         if "results" in data and data["results"]:
@@ -61,6 +63,7 @@ def get_lat_lon(city_name):
         st.error(f"Error finding city '{city_name}': {e}")
         return None, None
 
+@st.cache_data(ttl=3600)
 def get_weather_data(lat, lon, start_date, end_date):
     """
     Fetches historical weather data (max temp) for a specific location and date range.
@@ -75,7 +78,8 @@ def get_weather_data(lat, lon, start_date, end_date):
             "daily": "temperature_2m_max",
             "timezone": "auto"
         }
-        response = requests.get(url, params=params)
+        # Added timeout to prevent hanging
+        response = requests.get(url, params=params, timeout=10)
         response.raise_for_status()
         data = response.json()
         
