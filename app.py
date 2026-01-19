@@ -129,25 +129,31 @@ st.divider()
 if city_a and city_b and len(date_range) == 2:
     start_date, end_date = date_range
 
+    # Initialize dataframes
+    df_a = pd.DataFrame()
+    df_b = pd.DataFrame()
+    fetch_error = False
+
     # Using st.status to show explicit progress
     with st.status("Fetching weather data...", expanded=True) as status:
-        
-        # 1. Get Coordinates
-        st.write(f"📍 Finding location for {city_a}...")
-        lat_a, lon_a = get_lat_lon(city_a)
-        
-        st.write(f"📍 Finding location for {city_b}...")
-        lat_b, lon_b = get_lat_lon(city_b)
-        
-        if lat_a is None:
-            status.update(label="Error Finding Location", state="error")
-            st.error(f"Could not find location for City A: {city_a}")
-        elif lat_b is None:
-            status.update(label="Error Finding Location", state="error")
-            st.error(f"Could not find location for City B: {city_b}")
-        else:
-            # 2. Get Weather Data
-            try:
+        try:
+            # 1. Get Coordinates
+            st.write(f"📍 Finding location for {city_a}...")
+            lat_a, lon_a = get_lat_lon(city_a)
+            
+            st.write(f"📍 Finding location for {city_b}...")
+            lat_b, lon_b = get_lat_lon(city_b)
+            
+            if lat_a is None:
+                status.update(label="Error Finding Location", state="error")
+                st.error(f"Could not find location for City A: {city_a}")
+                fetch_error = True
+            elif lat_b is None:
+                status.update(label="Error Finding Location", state="error")
+                st.error(f"Could not find location for City B: {city_b}")
+                fetch_error = True
+            else:
+                # 2. Get Weather Data
                 st.write(f"🌤️ Fetching weather history for {city_a}...")
                 df_a = get_weather_data(lat_a, lon_a, start_date, end_date)
                 
@@ -157,54 +163,58 @@ if city_a and city_b and len(date_range) == 2:
                 if df_a.empty or df_b.empty:
                     status.update(label="No Data Found", state="error")
                     st.warning("Could not retrieve weather data. Please check the city names or try a shorter date range.")
+                    fetch_error = True
                 else:
                     status.update(label="Data Loaded Successfully!", state="complete", expanded=False)
                     
-                    # Merge Data for Charting
-                    df_a["City"] = city_a
-                    df_b["City"] = city_b
-                    
-                    combined_df = pd.concat([df_a, df_b])
-                    
-                    # --- Visualizations ---
-                    tab1, tab2 = st.tabs(["📈 Temperature Trends", "🔢 Raw Data"])
-                    
-                    with tab1:
-                        fig = px.line(
-                            combined_df, 
-                            x="Date", 
-                            y="Max Temp (°C)", 
-                            color="City",
-                            title=f"Max Daily Temperature: {city_a} vs {city_b}",
-                            markers=True,
-                            line_shape="spline",
-                            template="plotly_white",
-                            color_discrete_sequence=["#0d6efd", "#fd7e14"] 
-                        )
-                        fig.update_layout(
-                            hovermode="x unified",
-                            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
-                        )
-                        st.plotly_chart(fig, use_container_width=True)
-                    
-                    with tab2:
-                        try:
-                            comparison_df = pd.merge(
-                                df_a[["Date", "Max Temp (°C)"]].rename(columns={"Max Temp (°C)": f"{city_a} Temp (°C)"}),
-                                df_b[["Date", "Max Temp (°C)"]].rename(columns={"Max Temp (°C)": f"{city_b} Temp (°C)"}),
-                                on="Date"
-                            )
-                            st.dataframe(comparison_df, use_container_width=True, hide_index=True)
-                        except Exception as e:
-                            st.error("Error creating comparison table.")
-                            st.write(e)
-                            
-            except Timeout:
-                status.update(label="Connection Timed Out", state="error")
-                st.error("The request to the Weather API timed out. Please try again later or assume the server is busy.")
+        except Timeout:
+            status.update(label="Connection Timed Out", state="error")
+            st.error("The request to the Weather API timed out. Please try again later or assume the server is busy.")
+            fetch_error = True
+        except Exception as e:
+            status.update(label="An Error Occurred", state="error")
+            st.error(f"An unexpected error occurred: {e}")
+            fetch_error = True
+
+    # --- Visualizations ---
+    if not fetch_error and not df_a.empty and not df_b.empty:
+        # Merge Data for Charting
+        df_a["City"] = city_a
+        df_b["City"] = city_b
+        
+        combined_df = pd.concat([df_a, df_b])
+        
+        tab1, tab2 = st.tabs(["📈 Temperature Trends", "🔢 Raw Data"])
+        
+        with tab1:
+            fig = px.line(
+                combined_df, 
+                x="Date", 
+                y="Max Temp (°C)", 
+                color="City",
+                title=f"Max Daily Temperature: {city_a} vs {city_b}",
+                markers=True,
+                line_shape="spline",
+                template="plotly_white",
+                color_discrete_sequence=["#0d6efd", "#fd7e14"] 
+            )
+            fig.update_layout(
+                hovermode="x unified",
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+            )
+            st.plotly_chart(fig, use_container_width=True)
+        
+        with tab2:
+            try:
+                comparison_df = pd.merge(
+                    df_a[["Date", "Max Temp (°C)"]].rename(columns={"Max Temp (°C)": f"{city_a} Temp (°C)"}),
+                    df_b[["Date", "Max Temp (°C)"]].rename(columns={"Max Temp (°C)": f"{city_b} Temp (°C)"}),
+                    on="Date"
+                )
+                st.dataframe(comparison_df, use_container_width=True, hide_index=True)
             except Exception as e:
-                status.update(label="An Error Occurred", state="error")
-                st.error(f"An unexpected error occurred: {e}")
+                st.error("Error creating comparison table.")
+                st.write(e)
 
 else:
     st.info("Please enter both cities and select a valid date range to view the analytics.")
